@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily Duty Dashboard</title>
+<style>
+  :root{
+    --bg:#eef2f7; --card:#ffffff; --navy:#12233f; --grey:#6b7788; --line:#e1e7ef;
+    --blue:#1f4fa3; --blue-soft:#e8effb; --accent:#2f6fdd; --amber:#b7791f; --amber-soft:#fdf5e4;
+    --green:#1d7a46; --green-soft:#e6f5ec;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--navy);line-height:1.35;padding-bottom:env(safe-area-inset-bottom)}
+  header{background:linear-gradient(135deg,#0c1c3a 0%,#1b3a73 100%);color:#fff;text-align:center;
+    padding:calc(28px + env(safe-area-inset-top)) 16px 56px}
+  header h1{font-size:clamp(22px,5vw,34px);letter-spacing:.14em;font-weight:700}
+  header .names{margin-top:6px;font-size:clamp(14px,3.4vw,18px);letter-spacing:.12em;opacity:.85}
+  header .date{margin-top:18px;font-size:clamp(18px,4.6vw,28px);font-weight:600}
+  main{max-width:1000px;margin:-34px auto 40px;padding:0 14px}
+  section{background:var(--card);border-radius:18px;box-shadow:0 4px 18px rgba(18,35,63,.08);padding:20px;margin-bottom:18px}
+  h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--grey);margin-bottom:14px;font-weight:700}
+
+  /* today cards */
+  .duty-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .duty-card{border:1px solid var(--line);border-radius:16px;padding:18px 16px;text-align:center;background:#fafcff}
+  .duty-card .label{font-size:12px;letter-spacing:.14em;font-weight:700;color:var(--grey)}
+  .duty-card .name{font-size:clamp(20px,4.6vw,30px);font-weight:800;margin:10px 0 6px;color:var(--navy)}
+  .duty-card .time{font-size:clamp(14px,3.4vw,17px);color:var(--grey)}
+  .badge{display:inline-block;margin-top:12px;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.08em}
+  .badge.current{background:var(--green-soft);color:var(--green)}
+  .badge.upcoming{background:var(--amber-soft);color:var(--amber)}
+  .badge.done{background:#eef0f4;color:var(--grey)}
+  .duty-card.is-current{border-color:var(--green);box-shadow:0 0 0 2px var(--green-soft)}
+
+  /* table */
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:15px}
+  th{font-size:11px;letter-spacing:.12em;color:var(--grey);text-align:left;padding:8px 10px;border-bottom:2px solid var(--line)}
+  td{padding:11px 10px;border-bottom:1px solid var(--line);font-weight:600}
+  tr.today td{background:var(--blue-soft);color:var(--blue);font-weight:800}
+  td.muted{color:var(--grey);font-weight:500}
+
+  /* calendar */
+  .cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .cal-title{font-size:clamp(17px,4vw,22px);font-weight:800;letter-spacing:.08em;flex:1;text-align:center;order:0}
+  button{font:inherit;cursor:pointer}
+  .nav-btn{background:var(--blue-soft);color:var(--blue);border:0;border-radius:10px;padding:9px 12px;font-weight:700;font-size:13px}
+  .nav-btn:hover{background:#d8e4fa}
+  .nav-btn.cur{background:var(--navy);color:#fff}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+  .dow{font-size:11px;letter-spacing:.1em;font-weight:700;color:var(--grey);text-align:center;padding:6px 0}
+  .cell{border:1px solid var(--line);border-radius:10px;background:#fff;padding:6px 6px 7px;min-height:84px;text-align:left;
+    color:var(--navy);display:flex;flex-direction:column;gap:3px;overflow:hidden}
+  .cell.empty{border:0;background:transparent;min-height:0;cursor:default}
+  .cell:hover:not(.empty){border-color:var(--accent)}
+  .cell .num{font-size:15px;font-weight:800}
+  .cell .row{font-size:11px;line-height:1.2;color:var(--navy)}
+  .cell .row b{color:var(--grey);font-weight:600}
+  .cell .short{display:none}
+  .cell.thu{background:#f3f6fb;border-top:3px solid #8aa2c9}
+  .cell.today{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .cell.today .row,.cell.today .row b{color:#fff}
+  .cell.today .row b{opacity:.7}
+  .cell.selected{outline:3px solid var(--accent);outline-offset:1px}
+  .legend{display:none;margin-top:12px;font-size:12px;color:var(--grey);text-align:center}
+  .key{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;font-size:12px;color:var(--grey);justify-content:center}
+  .key i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px;border:1px solid var(--line)}
+
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(10,20,40,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .overlay.open{display:flex}
+  .modal{background:#fff;border-radius:20px;max-width:440px;width:100%;padding:24px 20px;box-shadow:0 20px 60px rgba(0,0,0,.35);position:relative}
+  .modal .close{position:absolute;top:10px;right:12px;border:0;background:#eef2f7;color:var(--navy);width:34px;height:34px;border-radius:50%;font-size:18px}
+  .modal h3{font-size:clamp(18px,5vw,22px);letter-spacing:.06em;text-align:center;font-weight:800}
+  .modal .sub{text-align:center;color:var(--grey);letter-spacing:.14em;font-size:13px;margin:4px 0 18px;font-weight:600}
+  .modal .duty-card{margin-bottom:12px}
+  .modal .nav{display:flex;justify-content:space-between;gap:8px;margin-top:6px}
+
+  footer{text-align:center;color:var(--grey);font-size:12px;padding:0 16px 24px}
+
+  @media (max-width:640px){
+    section{padding:14px 10px;border-radius:16px}
+    .duty-grid{grid-template-columns:1fr}
+    .cal-grid{gap:3px}
+    .cell{min-height:64px;padding:4px 3px;border-radius:8px;align-items:center;text-align:center}
+    .cell .num{font-size:14px}
+    .cell .row{font-size:10.5px;font-weight:700}
+    .cell .row b{display:inline}
+    .cell .full{display:none}
+    .cell .short{display:inline}
+    .legend{display:block}
+    .dow{font-size:10px;letter-spacing:.02em}
+    .cal-title{order:-1;flex-basis:100%}
+    .nav-btn{flex:1;padding:10px 6px}
+    td,th{padding:9px 6px;font-size:13px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DAILY DUTY DASHBOARD</h1>
+  <div class="names">P SHRIKANTH &amp; S MAHESH</div>
+  <div class="date" id="todayDate"></div>
+</header>
+
+<main>
+  <section>
+    <h2>Today's Duty</h2>
+    <div class="duty-grid">
+      <div class="duty-card" id="cardMorning">
+        <div class="label">MORNING DUTY</div>
+        <div class="name" id="mName"></div>
+        <div class="time">06:00 AM – 12:00 PM</div>
+        <div id="mBadge"></div>
+      </div>
+      <div class="duty-card" id="cardEvening">
+        <div class="label">EVENING DUTY</div>
+        <div class="name" id="eName"></div>
+        <div class="time">01:00 PM – 08:00 PM</div>
+        <div id="eBadge"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Next 7 Days Duty</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>DATE</th><th>DAY</th><th>MORNING</th><th>EVENING</th></tr></thead>
+        <tbody id="weekBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Duty Calendar</h2>
+    <div class="cal-head">
+      <button class="nav-btn" id="prevBtn">&lt; Previous Month</button>
+      <div class="cal-title" id="calTitle"></div>
+      <button class="nav-btn cur" id="curBtn">Current Month</button>
+      <button class="nav-btn" id="nextBtn">Next Month &gt;</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="legend">M = Morning &nbsp;·&nbsp; E = Evening &nbsp;·&nbsp; PS = P SHRIKANTH &nbsp;·&nbsp; SM = S MAHESH<br>Tap a date for full details</div>
+    <div class="key">
+      <span><i style="background:#12233f"></i>Today</span>
+      <span><i style="background:#fff;outline:2px solid #2f6fdd"></i>Selected</span>
+      <span><i style="background:#f3f6fb;border-top:3px solid #8aa2c9"></i>Thursday (alternating)</span>
+    </div>
+  </section>
+</main>
+<footer>Duties are calculated automatically from your device's date. Thursdays alternate weekly from 08 Oct 2026.</footer>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="modal" id="modal">
+    <button class="close" id="closeBtn" aria-label="Close">✕</button>
+    <h3 id="mdTitle"></h3>
+    <div class="sub" id="mdDay"></div>
+    <div class="duty-card"><div class="label">MORNING DUTY</div><div class="name" id="mdM"></div><div class="time">06:00 AM – 12:00 PM</div></div>
+    <div class="duty-card"><div class="label">EVENING DUTY</div><div class="name" id="mdE"></div><div class="time">01:00 PM – 08:00 PM</div></div>
+    <div class="nav">
+      <button class="nav-btn" id="mdPrev">&lt; Previous Day</button>
+      <button class="nav-btn" id="mdNext">Next Day &gt;</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== LOGIC-START =====================
+const P = "P SHRIKANTH";
+const S = "S MAHESH";
+const ANCHOR_THURSDAY = { y: 2026, m: 9, d: 8 };   // 08 Oct 2026 (month is 0-based)
+// Anchor: Morning = P SHRIKANTH, Evening = S MAHESH
+
+// Whole calendar days between two local dates (DST/timezone safe: uses UTC of Y/M/D components only)
+function dayNumber(date) {
+  return Math.round(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+}
+const ANCHOR_DAY = Math.round(Date.UTC(ANCHOR_THURSDAY.y, ANCHOR_THURSDAY.m, ANCHOR_THURSDAY.d) / 86400000);
+
+// The single source of truth for all duty assignments
+function getDutyForDate(date) {
+  const dow = date.getDay(); // local day of week: 0=Sun ... 6=Sat
+  if (dow >= 1 && dow <= 3) return { morning: P, evening: S };            // Mon–Wed
+  if (dow === 5 || dow === 6 || dow === 0) return { morning: S, evening: P }; // Fri–Sun
+  // Thursday: alternate weekly from the anchor (works before and after the anchor)
+  const weeks = Math.floor((dayNumber(date) - ANCHOR_DAY) / 7);
+  return (((weeks % 2) + 2) % 2 === 0)
+    ? { morning: P, evening: S }
+    : { morning: S, evening: P };
+}
+// ===================== LOGIC-END =====================
+
+const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MON3 = MONTHS.map(m => m.slice(0,3));
+const pad = n => String(n).padStart(2, "0");
+const $ = id => document.getElementById(id);
+const short = n => n === P ? "PS" : "SM";
+const sameDay = (a, b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+const mkDate = (y, m, d) => new Date(y, m, d);          // local midnight
+const startOfToday = () => { const n = new Date(); return mkDate(n.getFullYear(), n.getMonth(), n.getDate()); };
+
+let today = startOfToday();
+let viewYear = today.getFullYear();
+let viewMonth = today.getMonth();
+let selected = null;
+
+function renderToday() {
+  const duty = getDutyForDate(today);
+  $("todayDate").textContent = `${DAYS[today.getDay()]}, ${pad(today.getDate())} ${MONTHS[today.getMonth()]} ${today.getFullYear()}`;
+  $("mName").textContent = duty.morning;
+  $("eName").textContent = duty.evening;
+
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const status = (start, end) => mins >= start && mins < end ? "current" : (mins < start ? "upcoming" : "done");
+  const text = { current: "CURRENT DUTY", upcoming: "UPCOMING DUTY", done: "DUTY HOURS COMPLETED" };
+  [["m", 360, 720, "cardMorning"], ["e", 780, 1200, "cardEvening"]].forEach(([k, s, e, card]) => {
+    const st = status(s, e);
+    $(k + "Badge").innerHTML = `<span class="badge ${st}">${text[st]}</span>`;
+    $(card).classList.toggle("is-current", st === "current");
+  });
+}
+
+function renderWeek() {
+  const body = $("weekBody");
+  body.innerHTML = "";
+  for (let i = 0; i < 7; i++) {
+    const d = mkDate(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    const duty = getDutyForDate(d);
+    const tr = document.createElement("tr");
+    if (i === 0) tr.className = "today";
+    tr.innerHTML = `<td>${pad(d.getDate())} ${MON3[d.getMonth()]} ${d.getFullYear()}</td><td>${DAYS[d.getDay()]}</td><td>${duty.morning}</td><td>${duty.evening}</td>`;
+    body.appendChild(tr);
+  }
+}
+
+function renderCalendar() {
+  $("calTitle").textContent = `${MONTHS[viewMonth].toUpperCase()} ${viewYear}`;
+  const grid = $("calGrid");
+  grid.innerHTML = "";
+  ["MON","TUE","WED","THU","FRI","SAT","SUN"].forEach(n => {
+    const h = document.createElement("div"); h.className = "dow"; h.textContent = n; grid.appendChild(h);
+  });
+  const first = mkDate(viewYear, viewMonth, 1);
+  const lead = (first.getDay() + 6) % 7;                         // Monday-first offset
+  const total = mkDate(viewYear, viewMonth + 1, 0).getDate();     // days in month
+  for (let i = 0; i < lead; i++) { const e = document.createElement("div"); e.className = "cell empty"; grid.appendChild(e); }
+  for (let day = 1; day <= total; day++) {
+    const d = mkDate(viewYear, viewMonth, day);
+    const duty = getDutyForDate(d);
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "cell" + (d.getDay() === 4 ? " thu" : "") + (sameDay(d, today) ? " today" : "") + (selected && sameDay(d, selected) ? " selected" : "");
+    b.setAttribute("aria-label", `${DAYS[d.getDay()]} ${day} ${MONTHS[viewMonth]} ${viewYear}. Morning ${duty.morning}. Evening ${duty.evening}.`);
+    b.innerHTML = `<span class="num">${day}</span>
+      <span class="row"><b>M<span class="full">orning</span>:</b> <span class="full">${duty.morning}</span><span class="short">${short(duty.morning)}</span></span>
+      <span class="row"><b>E<span class="full">vening</span>:</b> <span class="full">${duty.evening}</span><span class="short">${short(duty.evening)}</span></span>`;
+    b.addEventListener("click", () => selectDate(d));
+    grid.appendChild(b);
+  }
+}
+
+function selectDate(d) {
+  selected = mkDate(d.getFullYear(), d.getMonth(), d.getDate());
+  const duty = getDutyForDate(selected);
+  $("mdTitle").textContent = `${pad(selected.getDate())} ${MONTHS[selected.getMonth()].toUpperCase()} ${selected.getFullYear()}`;
+  $("mdDay").textContent = DAYS[selected.getDay()].toUpperCase();
+  $("mdM").textContent = duty.morning;
+  $("mdE").textContent = duty.evening;
+  $("overlay").classList.add("open");
+  // keep calendar in sync if the modal navigates into another month
+  viewYear = selected.getFullYear(); viewMonth = selected.getMonth();
+  renderCalendar();
+}
+
+function closeModal() { $("overlay").classList.remove("open"); }
+function shiftDay(n) { selectDate(mkDate(selected.getFullYear(), selected.getMonth(), selected.getDate() + n)); }
+function shiftMonth(n) {
+  const d = mkDate(viewYear, viewMonth + n, 1);
+  viewYear = d.getFullYear(); viewMonth = d.getMonth();
+  renderCalendar();
+}
+
+$("prevBtn").onclick = () => shiftMonth(-1);
+$("nextBtn").onclick = () => shiftMonth(1);
+$("curBtn").onclick = () => { viewYear = today.getFullYear(); viewMonth = today.getMonth(); renderCalendar(); };
+$("closeBtn").onclick = closeModal;
+$("overlay").addEventListener("click", e => { if (e.target === $("overlay")) closeModal(); });
+$("mdPrev").onclick = () => shiftDay(-1);
+$("mdNext").onclick = () => shiftDay(1);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+function fullRender() { renderToday(); renderWeek(); renderCalendar(); }
+
+// Keep everything current: status badges update, and a new day (midnight / reopened tab) refreshes all sections
+function tick() {
+  const t = startOfToday();
+  if (!sameDay(t, today)) {
+    const wasOnCurrent = viewYear === today.getFullYear() && viewMonth === today.getMonth();
+    today = t;
+    if (wasOnCurrent) { viewYear = today.getFullYear(); viewMonth = today.getMonth(); }
+    fullRender();
+  } else {
+    renderToday();
+  }
+}
+setInterval(tick, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
+window.addEventListener("focus", tick);
+window.addEventListener("pageshow", tick);
+
+fullRender();
+</script>
+</body>
+</html>
